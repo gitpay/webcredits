@@ -5,7 +5,7 @@ var https     = require('https');
 var sha256    = require('sha256');
 
 var port   = 443;
-var ldpc   = process.argv[2] || 'https://localhost/etc/wallet/inartes.com/inbox/';
+var ldpc   = process.argv[2] || 'https://gitpay.databox.me/Public/.wallet/github.com/linkeddata/SoLiD/wallet/inbox/';
 var domain = ldpc.split('/')[2];
 var wss    = 'wss://'+domain+':'+port+'/';
 var sub    = ldpc;
@@ -52,18 +52,43 @@ var f = $rdf.fetcher(g, TIMEOUT);
 
 console.log(ws);
 
-//
-//  connect to inboxes
-//
-ws.on('open', function() {
 
+
+
+
+
+
+
+
+
+
+ws.on('close', function close() {
+  console.log('disconnected');
+});
+
+function run() {
+
+  console.log('sending ping');
+  ws.send('ping');
+
+}
+
+function daemon() {
+  console.log('running daemon');
+  var heartbeat = 60;
+  run();
+  setInterval(run, heartbeat * 1000);
+}
+
+
+
+
+function subscribe(ldpc) {
   console.log('fetching user dirs from ' + ldpc);
   f.requestURI(ldpc,undefined,true, function(ok, body, xhr) {
     console.log('container fetched');
 
-
     var x = g.statementsMatching($rdf.sym(ldpc), LDP("contains"));
-
 
     for (var i=0; i<x.length; i++) {
       var sub = 'sub ' + x[i].object.uri;
@@ -71,6 +96,17 @@ ws.on('open', function() {
       ws.send( sub );
     }
   });
+}
+
+
+//
+//  connect to inboxes
+//
+ws.on('open', function() {
+
+  daemon();
+  subscribe(ldpc);
+
 });
 
 var queue = {};
@@ -79,9 +115,10 @@ var queue = {};
 //  listen for messages
 //
 ws.on('message', function(message) {
-  console.log('received: %s', message);
+  var now = '[' + new Date().toISOString() + '] ';
+  console.log(now + ' ' + message);
 
-
+  if (message === 'pong') return;
 
 
   ldpc = message.split(' ')[1].split(',')[0];
@@ -178,23 +215,6 @@ ws.on('message', function(message) {
             //This is the data we are posting, it needs to be a string or a buffer
             req.write('');
             req.end();
-/*
-            setTimeout(function(){
-              options.method = 'PUT';
-              options.path = '/' + tx.split('/').splice(3, tx.split('/').splice(3).length-2 ).join('/') + '/' + sha256(t[0]) + '/,meta';
-              console.log(options);
-              var req = https.request(options, callback);
-              req.write('<> <http://www.w3.org/ns/posix/stat#mtime> "'+ Math.floor(Date.now() / 1000) +'" . ');
-              req.end();
-
-              options.method = 'PUT';
-              options.path = '/' + tx.split('/').splice(3, tx.split('/').splice(3).length-2 ).join('/') + '/' + sha256(t[3]) + '/,meta';
-              console.log(options);
-              req = https.request(options, callback);
-              req.write('<> <http://www.w3.org/ns/posix/stat#mtime> "'+ Math.floor(Date.now() / 1000) +'" . ');
-              req.end();
-            });
-*/
           });
 
 
@@ -286,17 +306,6 @@ ws.on('message', function(message) {
 
 
   });
-
-
-
-
-
-
-
-
-
-
-
 
 
 });
